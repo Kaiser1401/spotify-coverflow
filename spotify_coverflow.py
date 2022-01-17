@@ -20,6 +20,8 @@ MONITOR_HEIGHT = 768
 # URI = "http://localhost:8888/callback"
 # ID = ""
 
+GRAYSCALE = True
+contrast_border_percent = 5
 
 def get_spotify():
     '''
@@ -29,7 +31,8 @@ def get_spotify():
     in the root directory.
     '''
 
-    spotify = spotipy.Spotify(auth_manager=spotipy.SpotifyOAuth(open_browser=False, client_id=ID, client_secret=SECRET, username=USERNAME, redirect_uri=URI, scope=SCOPE))
+    #open_browser=False,
+    spotify = spotipy.Spotify(auth_manager=spotipy.SpotifyOAuth(client_id=ID, client_secret=SECRET, username=USERNAME, redirect_uri=URI, scope=SCOPE))
     spotify.me()
 
     #token = util.prompt_for_user_token(USERNAME, SCOPE, ID, SECRET, URI)
@@ -46,7 +49,7 @@ def get_current_playing(sp):
     results = spotify.current_user_playing_track()
 
     img_src = results["item"]["album"]["images"][0]["url"]
-    artist = results["item"]["album"]["artists"][0]["name"]
+    artist = results["item"]["artists"][0]["name"]
     album = results["item"]["album"]["name"]
     name = results["item"]["name"]
     isrc = results["item"]["external_ids"]["isrc"]
@@ -82,10 +85,35 @@ def convert_image(src):
     '''
 
     res = requests.get(src)
-    img = Image.open(BytesIO(res.content)).resize(
-        (640, 640), Image.ANTIALIAS)
-    pi = ImageTk.PhotoImage(img, size=())
+    img = Image.open(BytesIO(res.content)).resize((640, 640), Image.ANTIALIAS)
+    if GRAYSCALE:
+        # use V channel of HSV
+        _, _, img = img.convert('HSV').split()
 
+        # contrast / stretching of values (lowest and highest percentage of range is black and white, rest i scaled)
+        if contrast_border_percent > 0:
+            pixels = list(img.getdata())
+            pixels.sort()
+            count = len(pixels)
+            idx = int(contrast_border_percent*count/100)
+            val_low = pixels[idx]
+            val_high = pixels[-idx]
+            while (val_high-val_low) < 32:
+                idx = idx // 2
+                val_low = pixels[idx]
+                val_high = pixels[-idx]
+                if idx < 10:
+                    break
+
+            scale = 255/(val_high-val_low)
+            def chg_value(v):
+                o = int((v-val_low)*scale)
+                o = max(0, min(o, 255))
+                return o
+            img = img.point(chg_value)
+
+
+    pi = ImageTk.PhotoImage(img, size=())
     return pi
 
 
@@ -119,12 +147,8 @@ def main(sp):
             artist = current_song["artist"]
             name = current_song["name"]
             most_recent_song = name
-            hd_img = None #itunes_search(current_song["name"], current_song["artist"])
 
-            if hd_img != None:
-                pi = convert_image(hd_img)
-            else:
-                pi = convert_image(current_song["img_src"])
+            pi = convert_image(current_song["img_src"])
 
             img_x = MONITOR_WIDTH / 3
             img_y = MONITOR_HEIGHT / 2
