@@ -1,25 +1,27 @@
 import time
 import requests
-import itunespy
 import spotipy
 import spotipy.util as util
 from io import BytesIO
 from PIL import Image, ImageTk
 from tkinter import Tk, Frame, Label
 
+from my_secrets import *
 from pprint import pprint
 
-MONITOR_WIDTH = 2560
-MONITOR_HEIGHT = 1440
+MONITOR_WIDTH = 1024
+MONITOR_HEIGHT = 768
 
-USERNAME = ""
-SECRET = ""
-SCOPE = ""
-URI = "http://localhost:8888/callback"
-ID = ""
+# in my_secrets.py:
+
+# USERNAME = ""
+# SECRET = ""
+# SCOPE = "user-read-playback-state"
+# URI = "http://localhost:8888/callback"
+# ID = ""
 
 
-def get_token():
+def get_spotify():
     '''
     This will open a new browser window if the developer account information
     above is correct. Follow the instructions that appear in the console dialog.
@@ -27,17 +29,20 @@ def get_token():
     in the root directory.
     '''
 
-    token = util.prompt_for_user_token(USERNAME, SCOPE, ID, SECRET, URI)
-    return token
+    spotify = spotipy.Spotify(auth_manager=spotipy.SpotifyOAuth(open_browser=False, client_id=ID, client_secret=SECRET, username=USERNAME, redirect_uri=URI, scope=SCOPE))
+    spotify.me()
+
+    #token = util.prompt_for_user_token(USERNAME, SCOPE, ID, SECRET, URI)
+    return spotify
 
 
-def get_current_playing(token):
+def get_current_playing(sp):
     '''
     Returns information about the current playing song. If no song is currently
     playing the most recent song will be returned.
     '''
 
-    spotify = spotipy.Spotify(auth=token)
+    spotify = sp
     results = spotify.current_user_playing_track()
 
     img_src = results["item"]["album"]["images"][0]["url"]
@@ -55,20 +60,20 @@ def get_current_playing(token):
     }
 
 
-def itunes_search(song, artist):
-    '''
-    Check if iTunes has a higher definition album cover and
-    return the url if found
-    '''
-
-    try:
-        matches = itunespy.search_track(song)
-    except LookupError:
-        return None
-
-    for match in matches:
-        if match.artist_name == artist:
-            return match.artwork_url_100.replace('100x100b', '5000x5000b')
+# def itunes_search(song, artist):
+#     '''
+#     Check if iTunes has a higher definition album cover and
+#     return the url if found
+#     '''
+#
+#     try:
+#         matches = itunespy.search_track(song)
+#     except LookupError:
+#         return None
+#
+#     for match in matches:
+#         if match.artist_name == artist:
+#             return match.artwork_url_100.replace('100x100b', '5000x5000b')
 
 
 def convert_image(src):
@@ -78,13 +83,13 @@ def convert_image(src):
 
     res = requests.get(src)
     img = Image.open(BytesIO(res.content)).resize(
-        (1300, 1300), Image.ANTIALIAS)
+        (640, 640), Image.ANTIALIAS)
     pi = ImageTk.PhotoImage(img, size=())
 
     return pi
 
 
-def main(token):
+def main(sp):
     '''
     Main event loop, draw the image and text to tkinter window
     '''
@@ -103,7 +108,7 @@ def main(token):
         redraw = True
 
         time.sleep(5)
-        current_song = get_current_playing(token)
+        current_song = get_current_playing(sp)
 
         if current_song["name"] != most_recent_song:
             redraw = True
@@ -114,8 +119,7 @@ def main(token):
             artist = current_song["artist"]
             name = current_song["name"]
             most_recent_song = name
-            hd_img = itunes_search(
-                current_song["name"], current_song["artist"])
+            hd_img = None #itunes_search(current_song["name"], current_song["artist"])
 
             if hd_img != None:
                 pi = convert_image(hd_img)
@@ -145,11 +149,11 @@ def main(token):
                 text=name,
                 bg="black",
                 fg="white",
-                font=("Courier New", 50),
+                font=("Courier New", 20),
             )
 
             song_x = MONITOR_WIDTH - (MONITOR_WIDTH / 5)
-            song_y = (MONITOR_HEIGHT / 2) + 50
+            song_y = (MONITOR_HEIGHT / 2) + 20
             song_label.place(x=song_x, y=song_y, anchor="center")
 
             root.update()
@@ -160,5 +164,5 @@ def main(token):
 
 
 if __name__ == "__main__":
-    token = get_token()
-    main(token)
+    sp = get_spotify()
+    main(sp)
