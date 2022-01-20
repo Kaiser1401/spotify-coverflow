@@ -1,4 +1,4 @@
-# SpotifyCoverFlow (Modifyed)
+# SpotifyCoverFlow (Modified)
 
 Simple script to display a full-screen image of your current playing song on Spotify.
 The intended use is to dedicate a RaspberryPi (or similar device) and a monitor/screen to be an always on digital poster.
