@@ -9,8 +9,20 @@ from tkinter import Tk, Frame, Label
 from my_secrets import *
 from pprint import pprint
 
+
+GRAYSCALE = True
+contrast_border_percent = 5
+
 MONITOR_WIDTH = 1024
 MONITOR_HEIGHT = 768
+
+IMG_SIZE = 640
+IMG_BORDER = 50
+
+time_spotify_poll_seconds = 5
+_time_next_spotify_poll = 0
+time_redraw_seconds = 0.1
+_time_next_redraw = 0
 
 # in my_secrets.py:
 
@@ -20,8 +32,6 @@ MONITOR_HEIGHT = 768
 # URI = "http://localhost:8888/callback"
 # ID = ""
 
-GRAYSCALE = True
-contrast_border_percent = 5
 
 def get_spotify():
     '''
@@ -47,6 +57,9 @@ def get_current_playing(sp):
 
     spotify = sp
     results = spotify.current_user_playing_track()
+
+    if not results:
+        return None
 
     img_src = results["item"]["album"]["images"][0]["url"]
     artist = results["item"]["artists"][0]["name"]
@@ -85,7 +98,7 @@ def convert_image(src):
     '''
 
     res = requests.get(src)
-    img = Image.open(BytesIO(res.content)).resize((640, 640), Image.ANTIALIAS)
+    img = Image.open(BytesIO(res.content)).resize((IMG_SIZE, IMG_SIZE), Image.ANTIALIAS)
     if GRAYSCALE:
         # use V channel of HSV
         _, _, img = img.convert('HSV').split()
@@ -117,10 +130,18 @@ def convert_image(src):
     return pi
 
 
+
+def get_spotify_info(sp):
+    pass
+
+
+
 def main(sp):
     '''
     Main event loop, draw the image and text to tkinter window
     '''
+
+    current_song = None
 
     root = Tk()
     root.configure(bg="black", cursor="none")
@@ -131,62 +152,93 @@ def main(sp):
     f.grid_propagate(0)
     f.update()
 
+    label = None
+    artist_label = None
+    song_label = None
     most_recent_song = ""
     while True:
-        redraw = True
+        global _time_next_spotify_poll
+        global _time_next_redraw
 
-        time.sleep(5)
-        current_song = get_current_playing(sp)
+        redraw = False
 
-        if current_song["name"] != most_recent_song:
+        if _time_next_spotify_poll < time.time():
+            current_song = get_current_playing(sp)
+            _time_next_spotify_poll = time.time()+time_spotify_poll_seconds
+        if current_song:
+            if current_song["id"] != most_recent_song:
+                redraw = True
+            # TODO update early when song shorter than 5 seconds
+
+        if _time_next_redraw < time.time():
             redraw = True
-        else:
-            redraw = False
 
         if redraw:
-            artist = current_song["artist"]
-            name = current_song["name"]
-            most_recent_song = name
+            _time_next_redraw = time.time()+time_redraw_seconds
 
-            pi = convert_image(current_song["img_src"])
+            if current_song:
+                artist = current_song["artist"]
+                name = current_song["name"]
+                most_recent_song = current_song["id"]
+                pi = convert_image(current_song["img_src"])
+            else:
+                artist = "Nothing playing"
+                name = ""
+                most_recent_song = ""
+                pi = None
 
-            img_x = MONITOR_WIDTH / 3
+
+
+            img_x = IMG_BORDER
             img_y = MONITOR_HEIGHT / 2
 
-            label = Label(f, image=pi, highlightthickness=0, bd=0)
-            label.place(x=img_x, y=img_y, anchor="center")
+            if pi:
+                if not label:
+                    label = Label(f, image=pi, highlightthickness=0, bd=0)
+                    label.place(x=img_x, y=img_y, anchor="w")
+                else:
+                    label.configure(image=pi)
 
-            artist_label = Label(
-                f,
-                text=artist,
-                bg="black",
-                fg="white",
-                font=("Courier New", 30)
-            )
+            if not artist_label:
+                artist_label = Label(
+                    f,
+                    text=artist,
+                    bg="black",
+                    fg="white",
+                    font=("Courier New", 30)
+                )
+                artist_x = MONITOR_WIDTH - IMG_BORDER
+                artist_y = 0
+                artist_label.place(x=artist_x, y=artist_y, anchor="ne")
+            else:
+                artist_label.configure(text=artist)
 
-            artist_x = MONITOR_WIDTH - (MONITOR_WIDTH / 5)
-            artist_y = (MONITOR_HEIGHT / 2) - 50
-            artist_label.place(x=artist_x, y=artist_y, anchor="center")
 
-            song_label = Label(
-                f,
-                text=name,
-                bg="black",
-                fg="white",
-                font=("Courier New", 20),
-            )
 
-            song_x = MONITOR_WIDTH - (MONITOR_WIDTH / 5)
-            song_y = (MONITOR_HEIGHT / 2) + 20
-            song_label.place(x=song_x, y=song_y, anchor="center")
+            if not song_label:
+                song_label = Label(
+                    f,
+                    text=name,
+                    bg="black",
+                    fg="white",
+                    font=("Courier New", 20),
+                )
+                song_x = MONITOR_WIDTH - IMG_BORDER
+                song_y = MONITOR_HEIGHT
+                song_label.place(x=song_x, y=song_y, anchor="se")
+            else:
+                song_label.configure(text=name)
 
             root.update()
 
-            label.destroy()
-            artist_label.destroy()
-            song_label.destroy()
+#            label.destroy()
+#            artist_label.destroy()
+#            song_label.destroy()
 
+        delay = max(0, min(_time_next_redraw, _time_next_redraw)-time.time())
+        time.sleep(delay)
 
 if __name__ == "__main__":
     sp = get_spotify()
     main(sp)
+
