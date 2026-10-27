@@ -1,7 +1,7 @@
-# SpotifyCoverFlow (Modified)
+# SpotifyCoverFlow for Retro-TV
 
-Simple script to display a full-screen image of your current playing song on Spotify.
-The intended use is to dedicate a RaspberryPi (or similar device) and a monitor/screen to be an always on digital poster.
+Display a full-screen image of your current playing song on Spotify.
+The intended use is to dedicate a RaspberryPi (or similar device) and a monitor/screen to be an always on display.
 
 Changes:
 * have just spotify's "low" 640px resolution images
@@ -11,4 +11,4 @@ Based on kylesurowiec'a [spotify-coverflow](https://github.com/kylesurowiec/spot
 Keys and callback URI are given with your personal Spotify developer account, register here: [Spotify Developer](https://developer.spotify.com/my-applications/#!/).
 
 Original looked like this:
-![Example (from original)](http://i.imgur.com/ruRSCt3.png)
+![Example](img/retro-tv-cover.jpg)

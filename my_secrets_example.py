@@ -1,0 +1,5 @@
+USERNAME = "USER"
+SECRET = "secretkey"
+SCOPE = "user-read-playback-state"
+URI = "http://127.0.0.1:8888/callback"
+ID = "id"
