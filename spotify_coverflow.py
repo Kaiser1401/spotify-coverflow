@@ -13,11 +13,13 @@ from pprint import pprint
 GRAYSCALE = True
 contrast_border_percent = 5
 
-MONITOR_WIDTH = 1024
-MONITOR_HEIGHT = 768
+MONITOR_WIDTH = 640
+MONITOR_HEIGHT = 480
 
-IMG_SIZE = 640
 IMG_BORDER = 50
+IMG_SIZE = MONITOR_HEIGHT-2*IMG_BORDER
+
+TSIZE = 25
 
 time_spotify_poll_seconds = 5
 _time_next_spotify_poll = 0
@@ -98,7 +100,7 @@ def convert_image(src):
     '''
 
     res = requests.get(src)
-    img = Image.open(BytesIO(res.content)).resize((IMG_SIZE, IMG_SIZE), Image.ANTIALIAS)
+    img = Image.open(BytesIO(res.content)).resize((IMG_SIZE, IMG_SIZE), Image.ANTIALIAS)    
     if GRAYSCALE:
         # use V channel of HSV
         _, _, img = img.convert('HSV').split()
@@ -144,6 +146,12 @@ def main(sp):
     current_song = None
 
     root = Tk()
+    global MONITOR_WIDTH
+    global MONITOR_HEIGHT
+
+    MONITOR_WIDTH = root.winfo_screenwidth()
+    MONITOR_HEIGHT = root.winfo_screenheight()
+
     root.configure(bg="black", cursor="none")
     root.attributes('-fullscreen', True)
 
@@ -189,13 +197,13 @@ def main(sp):
 
 
 
-            img_x = IMG_BORDER
+            img_x = MONITOR_WIDTH / 2
             img_y = MONITOR_HEIGHT / 2
 
             if pi:
                 if not label:
                     label = Label(f, image=pi, highlightthickness=0, bd=0)
-                    label.place(x=img_x, y=img_y, anchor="w")
+                    label.place(x=img_x, y=img_y, anchor="center")
                 else:
                     label.configure(image=pi)
 
@@ -205,11 +213,11 @@ def main(sp):
                     text=artist,
                     bg="black",
                     fg="white",
-                    font=("Courier New", 30)
+                    font=("Courier New", TSIZE)
                 )
-                artist_x = MONITOR_WIDTH - IMG_BORDER
+                artist_x = MONITOR_WIDTH / 2 
                 artist_y = 0
-                artist_label.place(x=artist_x, y=artist_y, anchor="ne")
+                artist_label.place(x=artist_x, y=artist_y, anchor="n")
             else:
                 artist_label.configure(text=artist)
 
@@ -221,11 +229,11 @@ def main(sp):
                     text=name,
                     bg="black",
                     fg="white",
-                    font=("Courier New", 20),
+                    font=("Courier New", TSIZE),
                 )
-                song_x = MONITOR_WIDTH - IMG_BORDER
+                song_x = MONITOR_WIDTH /2
                 song_y = MONITOR_HEIGHT
-                song_label.place(x=song_x, y=song_y, anchor="se")
+                song_label.place(x=song_x, y=song_y, anchor="s")
             else:
                 song_label.configure(text=name)
 
