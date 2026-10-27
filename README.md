@@ -10,5 +10,5 @@ Changes:
 Based on kylesurowiec'a [spotify-coverflow](https://github.com/kylesurowiec/spotify-coverflow) (that also collects higher resolution images from itunes)
 Keys and callback URI are given with your personal Spotify developer account, register here: [Spotify Developer](https://developer.spotify.com/my-applications/#!/).
 
-Original looked like this:
+Looks like this:
 ![Example](img/retro-tv-cover.jpg)
