@@ -20,7 +20,7 @@ IMG_BORDER = 50
 IMG_SIZE = MONITOR_HEIGHT-2*IMG_BORDER
 
 TXTSIZE = 25
-TXTMARGIN = 10
+TXTMARGIN = 25
 
 time_spotify_poll_seconds = 5
 _time_next_spotify_poll = 0
