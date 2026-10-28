@@ -4,7 +4,7 @@ import spotipy
 import spotipy.util as util
 from io import BytesIO
 from PIL import Image, ImageTk
-from tkinter import Tk, Frame, Label
+from tkinter import Tk, Frame, Label, font
 
 from my_secrets import *
 from pprint import pprint
@@ -19,7 +19,8 @@ MONITOR_HEIGHT = 480
 IMG_BORDER = 50
 IMG_SIZE = MONITOR_HEIGHT-2*IMG_BORDER
 
-TSIZE = 25
+TXTSIZE = 25
+TXTMARGIN = 10
 
 time_spotify_poll_seconds = 5
 _time_next_spotify_poll = 0
@@ -33,6 +34,17 @@ _time_next_redraw = 0
 # SCOPE = "user-read-playback-state"
 # URI = "http://localhost:8888/callback"
 # ID = ""
+
+
+#pillow backwards compatibility
+# Compatibility alias for older and newer Pillow versions
+if not hasattr(Image, 'ANTIALIAS'):
+    # In Pillow 10+, ANTIALIAS was replaced by Resampling.LANCZOS
+    if hasattr(Image, 'Resampling'):
+        Image.ANTIALIAS = Image.Resampling.LANCZOS
+    else:
+        # Fallback for even older variants or alternative forks
+        Image.ANTIALIAS = Image.LANCZOS
 
 
 def get_spotify():
@@ -102,21 +114,28 @@ def convert_image(src):
     res = requests.get(src)
     img = Image.open(BytesIO(res.content)).resize((IMG_SIZE, IMG_SIZE), Image.ANTIALIAS)    
     if GRAYSCALE:
-        # use V channel of HSV
-        _, _, img = img.convert('HSV').split()
+        # use V channel of HSV        
+        try:    
+            _, _, img = img.convert('HSV').split()
+        except ValueError:
+            # L to RGB to HSV
+            _, _, img = img.convert('RGB').convert('HSV').split()
 
         # contrast / stretching of values (lowest and highest percentage of range is black and white, rest i scaled)
-        if contrast_border_percent > 0:
-            pixels = list(img.getdata())
+        if contrast_border_percent > 0:                        
+            if hasattr(img, "get_flattened_data"):
+                pixels = list(img.get_flattened_data())
+            else:
+                pixels = list(img.getdata())  # deprecated
             pixels.sort()
-            count = len(pixels)
-            idx = int(contrast_border_percent*count/100)
+            count = len(pixels)            
+            idx = min( int(contrast_border_percent*count/100) , (count-1) // 2)
             val_low = pixels[idx]
-            val_high = pixels[-idx]
+            val_high = pixels[count - 1 - idx]
             while (val_high-val_low) < 32:
                 idx = idx // 2
                 val_low = pixels[idx]
-                val_high = pixels[-idx]
+                val_high = pixels[count - 1 - idx]
                 if idx < 10:
                     break
 
@@ -136,6 +155,15 @@ def convert_image(src):
 def get_spotify_info(sp):
     pass
 
+def fit_text(text, max_width, font_obj):
+    if font_obj.measure(text) <= max_width:
+        return text
+
+    suffix = "..."
+    while text and font_obj.measure(text + suffix) > max_width:
+        text = text[:-1]
+
+    return text + suffix
 
 
 def main(sp):
@@ -164,6 +192,13 @@ def main(sp):
     artist_label = None
     song_label = None
     most_recent_song = ""
+
+    last_img_url = ""
+    picture = None
+
+    text_font = font.Font(family="Courier New", size=TXTSIZE)
+    text_max_width = MONITOR_WIDTH - 2 * TXTMARGIN
+
     while True:
         global _time_next_spotify_poll
         global _time_next_redraw
@@ -188,24 +223,30 @@ def main(sp):
                 artist = current_song["artist"]
                 name = current_song["name"]
                 most_recent_song = current_song["id"]
-                pi = convert_image(current_song["img_src"])
+                if current_song["img_src"] != last_img_url:
+                    picture = convert_image(current_song["img_src"])
+                    last_img_url = current_song["img_src"]
             else:
                 artist = "Nothing playing"
                 name = ""
                 most_recent_song = ""
-                pi = None
+                picture = None
+                last_img_url = ""
 
+            # fit text
+            artist = fit_text(artist, text_max_width, text_font)
+            name = fit_text(name, text_max_width, text_font)
 
 
             img_x = MONITOR_WIDTH / 2
             img_y = MONITOR_HEIGHT / 2
 
-            if pi:
+            if picture:
                 if not label:
-                    label = Label(f, image=pi, highlightthickness=0, bd=0)
+                    label = Label(f, image=picture, highlightthickness=0, bd=0)
                     label.place(x=img_x, y=img_y, anchor="center")
                 else:
-                    label.configure(image=pi)
+                    label.configure(image=picture)
 
             if not artist_label:
                 artist_label = Label(
@@ -213,7 +254,7 @@ def main(sp):
                     text=artist,
                     bg="black",
                     fg="white",
-                    font=("Courier New", TSIZE)
+                    font=text_font
                 )
                 artist_x = MONITOR_WIDTH / 2 
                 artist_y = 0
@@ -229,7 +270,7 @@ def main(sp):
                     text=name,
                     bg="black",
                     fg="white",
-                    font=("Courier New", TSIZE),
+                    font=text_font,
                 )
                 song_x = MONITOR_WIDTH /2
                 song_y = MONITOR_HEIGHT
@@ -243,7 +284,7 @@ def main(sp):
 #            artist_label.destroy()
 #            song_label.destroy()
 
-        delay = max(0, min(_time_next_redraw, _time_next_redraw)-time.time())
+        delay = max(0, min(_time_next_redraw, _time_next_spotify_poll)-time.time())
         time.sleep(delay)
 
 if __name__ == "__main__":
